@@ -15,12 +15,11 @@ export const signup = async (req, res) => {
             skills
         });
 
-        await inngest.send({
+        // Non-blocking: Inngest failure must never break signup
+        inngest.send({
             name: "user/signup",
-            data: {
-                email
-            }
-        });
+            data: { email }
+        }).catch((err) => console.error("⚠️ Inngest send failed (non-fatal):", err.message));
 
         const token = jwt.sign(
             {

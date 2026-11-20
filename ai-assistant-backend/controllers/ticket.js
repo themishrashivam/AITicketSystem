@@ -17,7 +17,8 @@ export const createTicket = async (req, res) => {
       createdBy: req.user._id,
     });
 
-    await inngest.send({
+    // Non-blocking: Inngest failure must never break ticket creation
+    inngest.send({
       name: "ticket/created",
       data: {
         ticketId: newTicket._id.toString(),
@@ -25,7 +26,7 @@ export const createTicket = async (req, res) => {
         description: newTicket.description,
         createdBy: req.user._id.toString(),
       },
-    });
+    }).catch((err) => console.error("⚠️ Inngest send failed (non-fatal):", err.message));
 
     return res.status(201).json({
       message: "Ticket created and processing started",
