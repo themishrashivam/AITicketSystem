@@ -7,16 +7,25 @@ export const onUserSignup = inngest.createFunction(
   {
     id: "on-user-signup",
     retries: 2,
+
     triggers: {
       event: "user/signup",
     },
   },
-  async ({ event, step }) => {
-    try {
-      const { email } = event.data;
 
-      const user = await step.run("get-user-email", async () => {
-        const userObject = await User.findOne({ email });
+  async ({ event, step }) => {
+    const { email } = event.data;
+
+    console.log(
+      "👤 User signup event received:",
+      email
+    );
+
+    const user = await step.run(
+      "get-user-email",
+      async () => {
+        const userObject =
+          await User.findOne({ email });
 
         if (!userObject) {
           throw new NonRetriableError(
@@ -24,28 +33,44 @@ export const onUserSignup = inngest.createFunction(
           );
         }
 
-        return userObject;
-      });
+        console.log(
+          "✅ User found:",
+          userObject.email
+        );
 
-      await step.run("send-welcome-email", async () => {
-        const subject = "Welcome to the app";
+        return userObject;
+      }
+    );
+
+    await step.run(
+      "send-welcome-email",
+      async () => {
+        const subject =
+          "Welcome to the app";
 
         const message = `Hi,
 
 Thanks for signing up. We're glad to have you onboard!`;
 
-        await sendMail(user.email, subject, message);
-      });
+        console.log(
+          "📧 Sending welcome email to:",
+          user.email
+        );
 
-      return {
-        success: true,
-      };
-    } catch (err) {
-      console.error("❌ Error running step", err.message);
+        await sendMail(
+          user.email,
+          subject,
+          message
+        );
 
-      return {
-        success: false,
-      };
-    }
+        console.log(
+          "✅ Welcome email sent successfully"
+        );
+      }
+    );
+
+    return {
+      success: true,
+    };
   }
 );

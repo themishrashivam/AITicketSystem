@@ -5,11 +5,18 @@ const ticketSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
+      trim: true,
     },
 
     description: {
       type: String,
       required: true,
+      trim: true,
+    },
+
+    summary: {
+      type: String,
+      default: "",
     },
 
     status: {
@@ -31,6 +38,7 @@ const ticketSchema = new mongoose.Schema(
 
     priority: {
       type: String,
+      default: "medium",
     },
 
     deadline: {
@@ -39,10 +47,12 @@ const ticketSchema = new mongoose.Schema(
 
     helpfulNotes: {
       type: String,
+      default: "",
     },
 
     relatedSkills: {
       type: [String],
+      default: [],
     },
   },
   {

@@ -1,12 +1,53 @@
-import { createAgent, gemini } from "@inngest/agent-kit";
+const OPENROUTER_URL =
+  "https://openrouter.ai/api/v1/chat/completions";
 
-const supportAgent = createAgent({
-  model: gemini({
-    model: "gemini-3.5-flash-lite",
-    apiKey: process.env.GEMINI_API_KEY,
-  }),
-  name: "AI Ticket Triage",
-  system: `You are an AI support ticket analyzer.
+// Free OpenRouter model
+const MODEL = "nex-agi/nex-n2.5-mini:free";
+
+const analyzeTicket = async (ticket) => {
+  try {
+    const startTime = Date.now();
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error(
+        "❌ OPENROUTER_API_KEY is not configured"
+      );
+
+      return null;
+    }
+
+    console.log(
+      `🤖 Sending ticket to OpenRouter using ${MODEL}...`
+    );
+
+    const response = await fetch(
+      OPENROUTER_URL,
+      {
+        method: "POST",
+
+        headers: {
+          Authorization:
+            `Bearer ${process.env.OPENROUTER_API_KEY}`,
+
+          "Content-Type": "application/json",
+
+          "HTTP-Referer":
+            process.env.APP_URL ||
+            "http://localhost:5000",
+
+          "X-Title":
+            "AI Ticket System",
+        },
+
+        body: JSON.stringify({
+          model: MODEL,
+
+          messages: [
+            {
+              role: "system",
+
+              content: `
+You are an AI support ticket analyzer.
 
 Analyze the ticket and return ONLY valid JSON.
 
@@ -25,35 +66,118 @@ Rules:
 - Keep helpfulNotes short
 - Do not return markdown
 - Do not return code fences
-- Do not return any text outside JSON`,
-});
+- Do not return any text outside JSON
+              `,
+            },
 
-const analyzeTicket = async (ticket) => {
-  try {
-    const startTime = Date.now();
+            {
+              role: "user",
 
-    console.log("🤖 Sending ticket to Gemini...");
-
-    const response = await supportAgent.run(`
+              content: `
 Title: ${ticket.title}
 
 Description: ${ticket.description}
 
 Analyze this support ticket and return ONLY the required JSON.
-`);
+              `,
+            },
+          ],
 
-    console.log(
-      `🤖 Gemini response received in ${Date.now() - startTime}ms`
+          response_format: {
+            type: "json_schema",
+
+            json_schema: {
+              name: "ticket_analysis",
+
+              strict: true,
+
+              schema: {
+                type: "object",
+
+                properties: {
+                  summary: {
+                    type: "string",
+                  },
+
+                  priority: {
+                    type: "string",
+
+                    enum: [
+                      "low",
+                      "medium",
+                      "high",
+                    ],
+                  },
+
+                  helpfulNotes: {
+                    type: "string",
+                  },
+
+                  relatedSkills: {
+                    type: "array",
+
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+
+                required: [
+                  "summary",
+                  "priority",
+                  "helpfulNotes",
+                  "relatedSkills",
+                ],
+
+                additionalProperties: false,
+              },
+            },
+          },
+
+          temperature: 0.2,
+
+          max_tokens: 1000,
+        }),
+      }
     );
 
-    const raw = response.output?.[0]?.context;
+    const data = await response.json();
 
-    if (!raw) {
-      console.error("❌ AI returned empty response");
+    console.log(
+      `🤖 OpenRouter response received in ${
+        Date.now() - startTime
+      }ms`
+    );
+
+    if (!response.ok) {
+      console.error(
+        "❌ OpenRouter API error:",
+        JSON.stringify(data, null, 2)
+      );
+
       return null;
     }
 
-    console.log("🤖 Raw AI response:", raw);
+    console.log(
+      "🤖 OpenRouter model used:",
+      data?.model
+    );
+
+    const raw =
+      data?.choices?.[0]?.message?.content?.trim();
+
+    if (!raw) {
+      console.error(
+        "❌ AI returned empty response"
+      );
+
+      return null;
+    }
+
+    console.log(
+      "🤖 Raw AI response:",
+      raw
+    );
 
     const jsonString = raw
       .replace(/```json/gi, "")
@@ -68,20 +192,34 @@ Analyze this support ticket and return ONLY the required JSON.
 
     return {
       summary: parsed.summary || "",
-      priority: ["low", "medium", "high"].includes(priority)
+
+      priority: [
+        "low",
+        "medium",
+        "high",
+      ].includes(priority)
         ? priority
         : "medium",
-      helpfulNotes: parsed.helpfulNotes || "",
-      relatedSkills: Array.isArray(parsed.relatedSkills)
-        ? parsed.relatedSkills.filter(
-            (skill) =>
-              typeof skill === "string" &&
-              skill.trim().length > 0
-          )
-        : [],
+
+      helpfulNotes:
+        parsed.helpfulNotes || "",
+
+      relatedSkills:
+        Array.isArray(parsed.relatedSkills)
+          ? parsed.relatedSkills.filter(
+              (skill) =>
+                typeof skill === "string" &&
+                skill.trim().length > 0
+            )
+          : [],
     };
+
   } catch (error) {
-    console.error("❌ AI analysis failed:", error.message);
+    console.error(
+      "❌ AI analysis failed:",
+      error.message
+    );
+
     return null;
   }
 };

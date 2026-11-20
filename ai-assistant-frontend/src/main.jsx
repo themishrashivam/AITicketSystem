@@ -10,7 +10,7 @@ import {
 
 import CheckAuth from "./components/CheckAuth.jsx";
 
-import Tickets from "./pages/tickets.jsx";
+import Tickets from "./pages/Tickets.jsx";
 import TicketDetailsPage from "./pages/Ticket.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
