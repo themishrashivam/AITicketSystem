@@ -13,8 +13,11 @@ const PORT = process.env.PORT || 3000
 
 const app = express()
 
+// Strip trailing slash to avoid CORS mismatch (browser sends origin without trailing slash)
+const allowedOrigin = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "")
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: allowedOrigin,
   credentials: true
 }))
 app.use(express.json())
